@@ -17,4 +17,6 @@ osmnx_download_features.ipynb is used to download OSM engineering featutes such 
 
 R
 
+nb model for speeding.R is used to implement negative binominal model for speeding behaviours, network metrics, and engineering features
+
 export model results.R is used to format and export negative binominal results in R
