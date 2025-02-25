@@ -20,3 +20,5 @@ R
 nb model for speeding.R is used to implement negative binominal model for speeding behaviours, network metrics, and engineering features
 
 export model results.R is used to format and export negative binominal results in R
+
+plot heatmap for model results.R is used to read structured model results and plot heatmap for incidence rate ratio across models
