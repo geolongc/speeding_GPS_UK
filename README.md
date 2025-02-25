@@ -10,3 +10,5 @@ osmnx_download_features.ipynb is used to download OSM engineering featutes such 
 
 
 R
+
+export model results.R is used to format and export negative binominal results in R
