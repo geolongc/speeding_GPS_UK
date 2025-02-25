@@ -10,6 +10,8 @@ map_matching_GPS_highway_roadlink.py is used to conduct map-matching between GPS
 
 compass_postprocessing_mapmatching.py is used to postprecess map-matching results to extract GPS point with matched road link id
 
+summary statistics of GPS and highway road links.py is used to do summary statistics of GPS and highway road link level data using matched results
+
 osmnx_download_features.ipynb is used to download OSM engineering featutes such as traffic calmings, crossings, junctions, traffic signals, speed cameras
 
 
