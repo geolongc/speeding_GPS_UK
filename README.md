@@ -12,6 +12,8 @@ compass_postprocessing_mapmatching.py is used to postprecess map-matching result
 
 summary statistics of GPS and highway road links.py is used to do summary statistics of GPS and highway road link level data using matched results
 
+highway_roadlinks_processing.py is used to preprocess highway road links, and use the data to conduct spatial design network analysis (sDNA tool)
+
 osmnx_download_features.ipynb is used to download OSM engineering featutes such as traffic calmings, crossings, junctions, traffic signals, speed cameras
 
 
