@@ -139,6 +139,7 @@ gdflink1.to_file(OutPath, layer=OutLink, driver='GPKG')
 gdfnode1.to_file(OutPath, layer=OutNode, driver='GPKG')
 
 
+
 # %%
 # sDNA data preparation for directionality
 import os
@@ -194,7 +195,7 @@ for region in regions:
 
 
 # %%
-# sDNA data join
+# sDNA result data join
 import geopandas as gpd
 import os
 
@@ -252,79 +253,6 @@ for region in regions:
     # Optional: print to confirm the save
     print(f"Saved {region} to {path_toid}")
 
-
-
-
-
-# %%  calculate intersections using NetworkX
-import pandas as pd
-import numpy as np
-import geopandas as gpd
-import networkx as nx
-from networkx.algorithms import community
-from shapely.geometry import LineString, Point
-import time
-
-
-# 1. Generate unique indices for start and end nodes (coordinates) and edges (TOIDs)
-def generate_indices(gdflink):
-    """
-    Generates unique node indices for each start and end coordinate and edge indices for each TOID.
-    Adds edge index to the GeoDataFrame and returns node_indices, edge_indices.
-    """
-    # Generate node indices for start and end nodes only
-    unique_nodes = set(tuple(row.geometry.coords[0]) for _, row in gdflink.iterrows()).union(
-        set(tuple(row.geometry.coords[-1]) for _, row in gdflink.iterrows()))
-    node_indices = {node: idx for idx, node in enumerate(unique_nodes)}
-
-    # Generate edge indices for each TOID
-    edge_indices = {toid: idx for idx, toid in enumerate(gdflink['TOID'].unique())}
-    
-    # Add the edge indices to the GeoDataFrame
-    gdflink['edge_index'] = gdflink['TOID'].map(edge_indices)
-
-    return node_indices, edge_indices
-
-# 2. Create a undirected multigraph using node and edge indices
-def create_undirected_road_graph(gdflink, node_indices, edge_indices):
-    """
-    Constructs a undirected multigraph from road link data using indexed nodes and edges.
-    Adds the edge index to the graph's edges as well.
-    """
-    G = nx.MultiGraph()
-    
-    for _, row in gdflink.iterrows():
-        u = node_indices[tuple(row.geometry.coords[0])]
-        v = node_indices[tuple(row.geometry.coords[-1])]
-        edge_id = edge_indices[row['TOID']]
-        length = row.geometry.length
-
-        # Add nodes if not present
-        if not G.has_node(u):
-            G.add_node(u, pos=u)
-        if not G.has_node(v):
-            G.add_node(v, pos=v)
-
-        G.add_edge(u, v, key=edge_id, TOID=row['TOID'], edge_index=edge_id, geometry=row.geometry, length=length)
-
-    return G
-
-# 3. Compute edge-level reachability (directly connected links)
-def compute_edge_reachability(G):
-    """
-    Computes the number of directly reachable links (edges) from the start and end nodes of each edge.
-    Adds the reachability information as 'reachable_links' to the edge attributes in the graph.
-    """
-
-    for u, v, key, data in G.edges(keys=True, data=True):
-        # Count the number of edges directly connected to the start and end nodes
-        start_node_reachable_links = len(list(G.edges(u, keys=True)))
-        end_node_reachable_links = len(list(G.edges(v, keys=True)))
-
-        # Store the total number of directly reachable links in the edge's attributes
-        G[u][v][key]['reachable_links'] = start_node_reachable_links + end_node_reachable_links - 2
-
-    return G
 
 
 
