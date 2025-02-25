@@ -16,6 +16,8 @@ highway_roadlinks_processing.py is used to preprocess highway road links, and us
 
 osmnx_download_features.ipynb is used to download OSM engineering featutes such as traffic calmings, crossings, junctions, traffic signals, speed cameras
 
+process_osm_features.py is used to construct road network and links into multigraph in python and count OSM enginnering features for each road link within 100 meters
+
 
 R
 
