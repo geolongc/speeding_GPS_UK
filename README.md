@@ -18,7 +18,7 @@ This is a respository to demonstrate how to use GPS trajectory data with snapped
 
 * _process_osm_features.py_  is used to construct road network and links into multigraph in python and count OSM enginnering features for each road link within 100 meters
 
-Package versions: OSMnx 1.9.4, pandas 2.2.2, geopandas 0.14.4, networkx 3.3, 
+Package versions: OSMnx 1.9.4, pandas 2.2.2, geopandas 0.14.4, networkx 3.3, gotrackit 0.2.9
 
 
 **R**
