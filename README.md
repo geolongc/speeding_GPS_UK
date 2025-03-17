@@ -40,8 +40,8 @@ Package versions:  sf dplyr glmmTMB
 
 **Software and package versions**
 
-Sparial Design Network Analysis (sDNA), version 4.1.1
+* Sparial Design Network Analysis (sDNA), version 4.1.1
 
-QGIS 3.22.5
+* QGIS 3.22.5
 
 
