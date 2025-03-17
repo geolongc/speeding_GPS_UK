@@ -19,6 +19,11 @@ osmnx_download_features.ipynb is used to download OSM engineering featutes such 
 process_osm_features.py is used to construct road network and links into multigraph in python and count OSM enginnering features for each road link within 100 meters
 
 
+Python package versions
+
+OSMnx 1.9
+
+
 R
 
 read model data.R is used to read data in R for plot and modelling
@@ -32,8 +37,17 @@ export model results.R is used to format and export negative binominal results i
 plot heatmap for model results.R is used to read structured model results and plot heatmap for incidence rate ratio across models
 
 
+R package versions
+
+sf
+dplyr
+glmmTMB
+
+
 Software and package versions
 
 Sparial Design Network Analysis (sDNA), version 4.1.1
 
 QGIS 3.22.5
+
+
