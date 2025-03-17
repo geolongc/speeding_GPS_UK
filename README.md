@@ -4,19 +4,19 @@ This is a respository to demonstrate how to use GPS trajectory data with snapped
 
 **Python**
 
-*compass_preprocessing_trajectory_data.py is used to expand raw trajectory vectors to GPS points, save data to PostgreSQL, and filter data in British city regions
+* compass_preprocessing_trajectory_data.py is used to expand raw trajectory vectors to GPS points, save data to PostgreSQL, and filter data in British city regions
 
-*map_matching_GPS_highway_roadlink.py is used to conduct map-matching between GPS trajectory/points and highway road links using gotrackit package in python
+* map_matching_GPS_highway_roadlink.py is used to conduct map-matching between GPS trajectory/points and highway road links using gotrackit package in python
 
-*compass_postprocessing_mapmatching.py is used to postprecess map-matching results to extract GPS point with matched road link id
+* compass_postprocessing_mapmatching.py is used to postprecess map-matching results to extract GPS point with matched road link id
 
-*summary statistics of GPS and highway road links.py is used to do summary statistics of GPS and highway road link level data using matched results
+* summary statistics of GPS and highway road links.py is used to do summary statistics of GPS and highway road link level data using matched results
 
-*highway_roadlinks_processing.py is used to preprocess highway road links, and use the data to conduct spatial design network analysis (sDNA tool)
+* highway_roadlinks_processing.py is used to preprocess highway road links, and use the data to conduct spatial design network analysis (sDNA tool)
 
-*osmnx_download_features.ipynb is used to download OSM engineering featutes such as traffic calmings, crossings, junctions, traffic signals, speed cameras
+* osmnx_download_features.ipynb is used to download OSM engineering featutes such as traffic calmings, crossings, junctions, traffic signals, speed cameras
 
-*process_osm_features.py is used to construct road network and links into multigraph in python and count OSM enginnering features for each road link within 100 meters
+* process_osm_features.py is used to construct road network and links into multigraph in python and count OSM enginnering features for each road link within 100 meters
 
 Python package versions
 
