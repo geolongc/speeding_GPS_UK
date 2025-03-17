@@ -18,32 +18,32 @@ This is a respository to demonstrate how to use GPS trajectory data with snapped
 
 * _process_osm_features.py_ is used to construct road network and links into multigraph in python and count OSM enginnering features for each road link within 100 meters
 
-Python package versions
+package versions
 
 OSMnx 1.9
 
 
 **R**
 
-read model data.R is used to read data in R for plot and modelling
+* _read model data.R_ is used to read data in R for plot and modelling
 
-plot road link-level speeding.R is used to plot road link level speeding counts across road network in R
+* _plot road link-level speeding.R_ is used to plot road link level speeding counts across road network in R
 
-nb model for speeding.R is used to implement negative binominal model for speeding behaviours, network metrics, and engineering features
+* _nb model for speeding.R_ is used to implement negative binominal model for speeding behaviours, network metrics, and engineering features
 
-export model results.R is used to format and export negative binominal results in R
+* _export model results.R_ is used to format and export negative binominal results in R
 
-plot heatmap for model results.R is used to read structured model results and plot heatmap for incidence rate ratio across models
+* _plot heatmap for model results.R_ is used to read structured model results and plot heatmap for incidence rate ratio across models
 
 
-R package versions
+package versions
 
 sf
 dplyr
 glmmTMB
 
 
-Software and package versions
+**Software and package versions**
 
 Sparial Design Network Analysis (sDNA), version 4.1.1
 
