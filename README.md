@@ -35,4 +35,5 @@ plot heatmap for model results.R is used to read structured model results and pl
 Software and package versions
 
 Sparial Design Network Analysis (sDNA), version 4.1.1
+
 QGIS 3.22.5
