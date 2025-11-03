@@ -16,7 +16,7 @@ This is a respository to demonstrate how to use GPS trajectory data with snapped
 
 * _osmnx_download_features.ipynb_  is used to download OSM engineering featutes such as traffic calmings, crossings, junctions, traffic signals, speed cameras
 
-* _process_osm_features.py_  is used to construct road network and links into multigraph in python and count OSM enginnering features for each road link within 100 meters
+* _process_osm_features.py_  is used to construct road network and links into multigraph in python and count OSM enginnering features for each road link within 50 meters
 
 Package versions: gotrackit 0.2.9, OSMnx 1.9.4, pandas 2.2.2, geopandas 0.14.4, numpy 1.26.4, networkx 3.3
 
