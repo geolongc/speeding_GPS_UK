@@ -33,8 +33,10 @@ Package versions: gotrackit 0.2.9, OSMnx 1.9.4, pandas 2.2.2, geopandas 0.14.4, 
 
 * _plot heatmap for model results.R_  is used to read structured model results and plot heatmap for incidence rate ratio across models
 
+* _causal model.R_ is used to conduct causal models of propensity score matching and generalised propensity score to calculate average treatment effect on the treated
 
-Package versions:  sf 1.0.19, dplyr 1.1.4, glmmTMB 1.1.10, ggplot2 3.5.1
+
+Package versions:  sf 1.0.19, dplyr 1.1.4, glmmTMB 1.1.10, ggplot2 3.5.1, MatchIt 4.7.2, CausalGPS 0.5.0
 
 
 
