@@ -13,57 +13,6 @@ loadfonts(device = "pdf")  # Loads fonts for PDF output
 fonts()  # Confirm Arial appears in the list
 
 
-# Speeding events plot
-# List of regions to loop through
-regions <- c("London", "WestEngland", "Oxford", "Cambridge", "Newcastle", 
-             "Edinburgh", "Glasgow", "WestYorkshire", "SouthYorkshire", 
-             "Manchester", "Cardiff", "Liverpool", "WestMidlands")
-
-# Create empty vector to store link_speedingcount values
-all_speeding_counts <- c()
-
-# Loop through each region and gather link_speedingcount values
-for (region in regions) {
-  
-  # Construct the file path for the GeoPackage
-  path_speedevents <- paste0("/Users/longpc/Documents/Leeds/data/geocompass/export/highways_z/", region, "/Roads1_regroup_count.gpkg")
-  layer_speedevents <- "RoadLink1y_q1"
-  link_speedevents <- st_read(path_speedevents, layer = layer_speedevents)
-  
-  # Collect link_speedingcount values and store them in the all_speeding_counts vector
-  all_speeding_counts <- c(all_speeding_counts, link_speedevents$link_speedingcount)
-}
-
-# Display summary statistics for link_speedingcount
-summary(all_speeding_counts)
-table(all_speeding_counts)
-sum(all_speeding_counts >= 0)
-
-sum(all_speeding_counts == 0)
-sum(all_speeding_counts >= 1 & all_speeding_counts < 3)
-sum(all_speeding_counts >= 3 & all_speeding_counts < 10)
-sum(all_speeding_counts >= 10 & all_speeding_counts < 50)
-sum(all_speeding_counts >= 50 & all_speeding_counts < 200)
-sum(all_speeding_counts >= 200 & all_speeding_counts < 500)
-sum(all_speeding_counts >= 500)
-
-
-# Filter speeding counts greater than 0
-speeding_counts_gt0 <- all_speeding_counts[all_speeding_counts > 0]
-num_classes <- 6
-# Calculate natural breaks (Jenks)
-breaks <- classIntervals(speeding_counts_gt0, n = num_classes, style = "jenks")
-break_points <- breaks$brks
-print(break_points)
-# Classify the speeding counts using the natural breaks
-classified_speeding_counts <- cut(speeding_counts_gt0, breaks = break_points, include.lowest = TRUE)
-
-# Display the classified speeding counts
-table(classified_speeding_counts)
-
-
-
-
 # final use
 # List of regions to loop through
 regions <- c("London", "WestEngland", "Oxford", "Cambridge", "Newcastle", 
@@ -225,6 +174,201 @@ for (region in regions) {
 
 
 
+# speeding percent
+
+library(ggplot2)
+library(sf)
+library(viridis)
+library(dplyr)
+library(classInt)
+library(extrafont)
+
+# Import system fonts
+font_import(paths = "/System/Library/Fonts")  # This registers macOS system fonts
+loadfonts(device = "pdf")  # Loads fonts for PDF output
+
+# Check that Arial is available
+fonts()  # Confirm Arial appears in the list
+
+
+# ────────────────────────────────────────────────────────────────
+# Regions
+# ────────────────────────────────────────────────────────────────
+regions <- c(
+  "London", "WestEngland", "Oxford", "Cambridge", "Newcastle",
+  "Edinburgh", "Glasgow", "WestYorkshire", "SouthYorkshire",
+  "Manchester", "Cardiff", "Liverpool", "WestMidlands"
+)
+
+# ────────────────────────────────────────────────────────────────
+# Collect ALL speeding rates (for summary & bin checking)
+# speeding rate (%) = 100 − adherence rate (%)
+# ────────────────────────────────────────────────────────────────
+all_speeding_rates <- c()
+
+for (region in regions) {
+  
+  # Construct the file path for the GeoPackage
+  path_rates <- paste0("/Users/longpc/Documents/Leeds/data/geocompass/export/RoadLinks/", region, "/Roads1_regroup.gpkg")
+  layer_rates <- "RoadLink1y_q1"
+  link_rates <- st_read(path_rates, layer = layer_rates, quiet = TRUE)
+  
+  # read highways, join formofway
+  path_highway <- paste0("/Users/longpc/Documents/Leeds/data/geocompass/digidown/highways_x/", region, "/Roads1.gpkg")
+  # Define the layers
+  layer_highway <- "RoadLink"
+  
+  data_highway <- st_read(path_highway, layer = layer_highway)
+  data_highway <- st_drop_geometry(data_highway)
+  
+  # Select relevant columns from highway data
+  data_highway <- data_highway %>%
+    select(TOID, formofway, averagewidth)
+  
+  # Merge rates and highway data by 'TOID'
+  link_rates <- merge(link_rates, data_highway, by = "TOID", all.x = TRUE)
+  
+  link_rates <- subset(link_rates, formofway %in% c("Dual Carriageway", "Single Carriageway"))
+  
+  link_rates <- link_rates[!is.na(link_rates$averagewidth), ]
+  
+  all_speeding_rates <- c(
+    all_speeding_rates,
+    100 - link_rates$link_adhrate
+  )
+}
+
+# Summary statistics
+summary(all_speeding_rates)
+
+sum(all_speeding_rates > 50)
+sum(all_speeding_rates > 30 & all_speeding_rates <= 50)
+sum(all_speeding_rates > 20 & all_speeding_rates <= 30)
+sum(all_speeding_rates > 10 & all_speeding_rates <= 20)
+sum(all_speeding_rates > 5  & all_speeding_rates <= 10)
+sum(all_speeding_rates > 0 & all_speeding_rates <= 5)
+sum(all_speeding_rates == 0)
+
+
+# ────────────────────────────────────────────────────────────────
+# Speeding-rate classes
+# ────────────────────────────────────────────────────────────────
+breaks <- c(0, 1, 2, 3, 4, 5, 6)
+labels <- c("0", "0-5", "5–10", "10–20", "20–30", "30–50", "> 50")
+
+custom_colors <- c("#ffffe5", "#fee8c8", "#FECC8FFF", "#F4685CFF", "#C03A76FF", "#802582FF", "#29115AFF")
+
+
+
+# ────────────────────────────────────────────────────────────────
+# Plot speeding rate maps
+# ────────────────────────────────────────────────────────────────
+for (region in regions) {
+  
+  # Road links
+  path_links <- paste0(
+    "/Users/longpc/Documents/Leeds/data/geocompass/export/RoadLinks/",
+    region, "/Roads1_regroup.gpkg"
+  )
+  layer_links <- "RoadLink1y_q1"
+  link_rates <- st_read(path_links, layer = layer_links, quiet = TRUE)
+  
+  # read highways, join formofway
+  path_highway <- paste0("/Users/longpc/Documents/Leeds/data/geocompass/digidown/highways_x/", region, "/Roads1.gpkg")
+  # Define the layers
+  layer_highway <- "RoadLink"
+  
+  data_highway <- st_read(path_highway, layer = layer_highway)
+  data_highway <- st_drop_geometry(data_highway)
+  
+  # Select relevant columns from highway data
+  data_highway <- data_highway %>%
+    select(TOID, formofway, averagewidth)
+  
+  # Merge rates and highway data by 'TOID'
+  link_rates <- merge(link_rates, data_highway, by = "TOID", all.x = TRUE)
+  
+  link_rates <- subset(link_rates, formofway %in% c("Dual Carriageway", "Single Carriageway"))
+  
+  link_rates <- link_rates[!is.na(link_rates$averagewidth), ]
+  
+  # Region boundary
+  path_boundary <- paste0(
+    "/Users/longpc/Documents/Leeds/data/geocompass/digidown/polygon_x/",
+    region, ".shp"
+  )
+  region_Boundary <- st_read(path_boundary, quiet = TRUE)
+  
+  # ── Transform adherence rates → speeding rate (%)
+  link_rates$link_speedrate <- 100 - link_rates$link_adhrate
+  
+  # ── Reclassify speeding rate
+  link_rates$link_speedrate <- ifelse(link_rates$link_speedrate == 0, 0,
+ifelse(link_rates$link_speedrate > 0  & link_rates$link_speedrate <= 5, 1,
+ifelse(link_rates$link_speedrate > 5  & link_rates$link_speedrate <= 10, 2,
+ifelse(link_rates$link_speedrate > 10 & link_rates$link_speedrate <= 20, 3,
+ifelse(link_rates$link_speedrate > 20 & link_rates$link_speedrate <= 30, 4,
+ifelse(link_rates$link_speedrate > 30 & link_rates$link_speedrate <= 50, 5, 6))))))
+  
+  # ── Plot order: higher speeding first
+  link_rates <- link_rates %>%
+    arrange(link_speedrate)
+  
+  # ── Plot
+  plot <- ggplot() +
+    geom_sf(
+      data = link_rates,
+      aes(color = link_speedrate),
+      linewidth = 0.26
+    ) +
+    geom_sf(
+      data = region_Boundary,
+      fill = NA,
+      color = "black",
+      linewidth = 0.32
+    ) +
+    scale_color_stepsn(
+      colors = custom_colors,
+      breaks = breaks,
+      labels = labels,
+      limits = c(0, 7),
+      oob = scales::squish,
+      name = NULL
+    ) +
+    theme_minimal() +
+    labs(
+      title = NULL,
+      caption = paste("Road Link Speeding Rate (%) in", region)
+    ) +
+    theme(
+      panel.background = element_blank(),
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.grid = element_blank(),
+      plot.title = element_blank(),
+      plot.caption = element_text(family = "Arial", hjust = 0.45, size = 14),
+      plot.caption.position = "plot",
+      legend.text = element_text(family = "Arial", hjust = 0.5, vjust = -2.0),
+      axis.text = element_blank(),
+      axis.title = element_blank(),
+      legend.key.height = unit(2, "cm"),
+      legend.key.width = unit(0.5, "cm")
+    )
+  
+  print(plot)
+  
+  # ── Save
+  ggsave(
+    filename = paste0(
+      "/Users/longpc/Documents/Leeds/data/geocompass/plots/",
+      region, "_RoadLinkSpeedingRate.png"
+    ),
+    plot = plot,
+    width = 10,
+    height = 8,
+    dpi = 600,
+    device = "png"
+  )
+}
 
 
 
