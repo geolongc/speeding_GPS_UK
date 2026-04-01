@@ -1,9 +1,24 @@
-# cross-sectional speeding event model
+# cross-sectional speeding event model, with offset ptcount
 
 mod01_speeding_50m2km <- glmmTMB(
-  link_speedingcount ~ traffic_calming_50m01 + choker_counts_50m01 + traffic_island_50m01 + signals_crossing_counts_50m01 + marked_counts_50m01 + uncontrolled_counts_50m01 + roundabout_new_50m01 + mini_roundabout_counts_50m01 + motorway_junction_counts_50m01 + signal_new_counts_50m01 + camera_new_counts_50m01 + both_direction01 + scale(averagewidth) + scale(LLen) + scale(LAC) + scale(LConn) + scale(Con2000) + scale(BtHWl2000) + scale(InvMHDWl2000) + scale(MGLHWl2000) + scale(DivHWl2000) + speedLimit_group_new + (1 | city), family = nbinom2, ziformula = ~ 0, control = glmmTMBControl(optCtrl = list(iter.max = 10000, eval.max = 10000)), data = data_combined_x)
+  link_speedingcount ~ traffic_calming_50m01 + choker_counts_50m01 + traffic_island_50m01 + signals_crossing_counts_50m01 + marked_counts_50m01 + uncontrolled_counts_50m01 + roundabout_new_50m01 + mini_roundabout_counts_50m01 + motorway_junction_counts_50m01 + signal_new_counts_50m01 + camera_new_counts_50m01 + both_direction01 + scale(averagewidth) + scale(LLen) + scale(LAC) + scale(LConn) + scale(Con2000) + scale(BtHWl2000) + scale(InvMHDWl2000) + scale(MGLHWl2000) + scale(DivHWl2000) + speedLimit_group_new + (1 | city), offset = log(ptcount), family = nbinom2, ziformula = ~ 0, control = glmmTMBControl(optCtrl = list(iter.max = 10000, eval.max = 10000)), data = data_combined_x)
 summary(mod01_speeding_50m2km)
 sjPlot::tab_model(mod01_speeding_50m2km)
+
+
+
+# causal inference for binary variables, PSM
+# 50m
+# ════════════════════════════════════════════════════════════════
+# 0  Libraries
+# ════════════════════════════════════════════════════════════════
+library(MatchIt)
+library(cobalt)
+library(WeightIt)
+library(glmmTMB)
+library(dplyr)
+library(ggplot2)
+library(EValue)
 
 
 
@@ -22,23 +37,17 @@ data_combined_x <- data_combined_x %>%
   )
 
 
+colnames(data_combined_x)
+range(data_combined_x$link_speedingRate)
 
-# causal inference for binary variables, PSM
-# 50m
-# ════════════════════════════════════════════════════════════════
-# 0  Libraries
-# ════════════════════════════════════════════════════════════════
-library(MatchIt)
-library(cobalt)
-library(WeightIt)
-library(glmmTMB)
-library(dplyr)
-library(ggplot2)
+data_combined_x$link_speedingRatePct <- data_combined_x$link_speedingRate * 100
+range(data_combined_x$link_speedingRatePct)
 
 
 # ════════════════════════════════════════════════════════════════
 # 1  Settings (change only treat_var if you reuse the script)
 # ════════════════════════════════════════════════════════════════
+
 
 # set treatment variable
 treat_var   <- "traffic_calming_50m01"        # <-- REPLACE for other features
@@ -60,17 +69,17 @@ raw_cont   <- c("averagewidth","LLen","LAC","LConn",
                 "Con400","BtHWl400","InvMHDWl400",
                 "MGLHWl400","DivHWl400")
 
-raw_cont   <- c("averagewidth","LLen","LAC","LConn",
-                "Con800","BtHWl800","InvMHDWl800",
-                "MGLHWl800","DivHWl800")
+# raw_cont   <- c("averagewidth","LLen","LAC","LConn",
+#                 "Con800","BtHWl800","InvMHDWl800",
+#                 "MGLHWl800","DivHWl800")
 
-raw_cont   <- c("averagewidth","LLen","LAC","LConn",
-                "Con2000","BtHWl2000","InvMHDWl2000",
-                "MGLHWl2000","DivHWl2000")
+# raw_cont   <- c("averagewidth","LLen","LAC","LConn",
+#                 "Con2000","BtHWl2000","InvMHDWl2000",
+#                 "MGLHWl2000","DivHWl2000")
 
-raw_cont   <- c("averagewidth","LLen","LAC","LConn",
-                "Con5000","BtHWl5000","InvMHDWl5000",
-                "MGLHWl5000","DivHWl5000")
+# raw_cont   <- c("averagewidth","LLen","LAC","LConn",
+#                 "Con5000","BtHWl5000","InvMHDWl5000",
+#                 "MGLHWl5000","DivHWl5000")
 
 
 # binary vars
@@ -87,24 +96,12 @@ binary_cov <- c("traffic_calming_50m01","choker_counts_50m01",
 binary_cov <- setdiff(binary_cov, treat_var)   # drop the treatment
 
 
-# outcome variable, speeding count
-outcome_var <- "link_speedingcount"
-
-
 # ════════════════════════════════════════════════════════════════
 # 2  Data prep
 # ════════════════════════════════════════════════════════════════
 
 df <- data_combined_x |>
-  select(all_of(c(treat_var, outcome_var, "speed_limit_factor",
-                  binary_cov, raw_cont))) |>
-  na.omit()
-
-
-# subset data
-df <- data_combined_x_mph |>
-  select(all_of(c(treat_var, outcome_var,
-                  binary_cov, raw_cont))) |>
+  select(all_of(c(treat_var, "speed_limit_factor", "link_speedingcount", "link_speedingRatePct", "ptcount", "city", binary_cov, raw_cont))) |>
   na.omit()
 
 
@@ -117,8 +114,8 @@ covars <- c(binary_cov, scaled, "speed_limit_factor") # fix "speed limit"
 df$speed_limit_factor <- relevel(factor(df$speed_limit_factor), ref = "mph70")
 
 
-cat("N =", nrow(df),
-    "| treated prevalence =", round(mean(df[[treat_var]]), 3), "\n")
+# cat("N =", nrow(df),
+#     "| treated prevalence =", round(mean(df[[treat_var]]), 4), "\n")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -140,13 +137,29 @@ m.out <- matchit(ps_form, data = df,
 bal <- bal.tab(m.out, m.threshold = .10, un = TRUE)
 print(bal)
 
-# Extract and sort balance table
+# Extract balance table
 imbal <- bal$Balance
+
+# Drop propensity score distance
+imbal_cov <- imbal[imbal$Type != "Distance", ]
+# Compute absolute standardized mean differences
+imbal_cov$abs_std_diff <- abs(imbal_cov$Diff.Adj)
+
+# Average balance
+mean_balance <- mean(imbal_cov$abs_std_diff, na.rm = TRUE)
+# Also useful: max imbalance
+max_balance <- max(imbal_cov$abs_std_diff, na.rm = TRUE)
+
+cat("Mean |SMD| after matching =", round(mean_balance, 4), "\n")
+# cat("Max  |SMD| after matching =", round(max_balance, 4), "\n")
+
+
+# Sort balance table
 imbal$abs_std_diff <- abs(imbal$Diff.Adj)
 imbal_sorted <- imbal[order(-imbal$abs_std_diff), ]
 
-# # Print top 5 imbalanced covariates
-# print(head(imbal_sorted, 5)[, c("Diff.Adj", "abs_std_diff")], digits = 3)
+# Print top 5 imbalanced covariates
+print(head(imbal_sorted, 5)[, c("Diff.Adj", "abs_std_diff")], digits = 3)
 
 # Stop if imbalance exceeds threshold
 if (any(imbal$abs_std_diff > 0.10, na.rm = TRUE)) {
@@ -171,6 +184,12 @@ love.plot(
 mdata <- match.data(m.out)
 nrow(mdata)
 
+# outcome variable (rate, %)
+outcome_var <- "link_speedingRatePct"
+
+# outcome variable, speeding count
+outcome_var <- "link_speedingcount"
+
 
 # For ATT (after matching, or ATT-weighted sample)
 E_Y0 <- mean(mdata[[outcome_var]][mdata[[treat_var]] == 0])
@@ -183,62 +202,81 @@ ATT <- E_Y1 - E_Y0
 cat("ATT (difference):", round(ATT, 3), "\n")
 
 
-# sensitive test
-# ════════════════════════════════════════════════════════════════
-# 5  Caliper-sweep sensitivity (0.10–0.40)
-# ════════════════════════════════════════════════════════════════
+# sensitivity
+RR_psm <- E_Y1 / E_Y0
+round(RR_psm, 3)
 
-calipers <- seq(0.10, 0.40, by = 0.10)
 
-sens_list <- lapply(calipers, function(cal) {
-  
-  # 5-A: Matching
-  m <- matchit(
-    formula = ps_form,
-    data = df,
-    method = "nearest",
-    distance = "glm",
-    caliper = cal,
-    std.caliper = TRUE
-  )
-  
-  d <- match.data(m)
-  if (nrow(d) < 100) {
-    cat("Caliper", cal, "→ too few matched rows (", nrow(d), "), skipped.\n")
-    return(NULL)
+evalue_rr <- function(RR) {
+  if (RR >= 1) {
+    RR + sqrt(RR * (RR - 1))
+  } else {
+    (1 / RR) + sqrt((1 / RR) * ((1 / RR) - 1))
   }
-  
-  # 5-B: Compute max SMD safely
-  smd_vec <- bal.tab(m)$Balance$Diff.Adj
-  max_smd <- suppressWarnings(max(abs(smd_vec), na.rm = TRUE))
-  if (is.infinite(max_smd) || is.nan(max_smd)) max_smd <- NA_real_
-  
-  cat("Caliper =", cal, "| N =", nrow(d), "| Max |SMD| =", round(max_smd, 3), "\n")
-  
-  # 5-C: Return as data frame
-  data.frame(
-    Caliper = cal,
-    N = nrow(d),
-    MaxSMD = round(max_smd, 3)
-  )
-})
-
-# 5-E: Combine non-null results
-sens <- bind_rows(Filter(Negate(is.null), sens_list))
-
-# 5-F: Show result
-print(sens, digits = 3)
+}
 
 
+Evalue_psm <- evalue_rr(RR_psm)
+round(Evalue_psm, 3)
+
+
+# Fit GLMM on matched data, sensitivity
+# The coefficient of 'treat' represents the ATT on the log-link scale
+
+psm_formula <- as.formula(paste("link_speedingcount", "~", treat_var, "+ (1 | city)"))
+
+# rate
+psm_post_model <- glmmTMB(
+  formula = psm_formula,
+  offset = log(ptcount),
+  weights = weights,       # weights from matchit (crucial!)
+  family = nbinom2,
+  data   = mdata
+)
+
+# Extract IRR and 95% Confidence Interval
+res_psm <- summary(psm_post_model)$coefficients$cond[treat_var, ]  # rate
+
+
+# raw count
+psm_post_model_raw <- glmmTMB(
+  formula = psm_formula,
+  weights = weights,       # weights from matchit (crucial!)
+  family = nbinom2,
+  data   = mdata
+)
+
+# Extract IRR and 95% Confidence Interval
+res_psm <- summary(psm_post_model_raw)$coefficients$cond[treat_var, ]  # raw count
+
+
+# post irr
+irr_val <- exp(res_psm["Estimate"])
+lower_irr <- exp(res_psm["Estimate"] - 1.96 * res_psm["Std. Error"])
+upper_irr <- exp(res_psm["Estimate"] + 1.96 * res_psm["Std. Error"])
+
+cat("Binary ATT (IRR):", round(irr_val, 3), "CI:", round(lower_irr, 3), "-", round(upper_irr, 3), "\n")
+
+# Calculate E-value for the point estimate and the CI bound closer to the null
+# Using the EValue package for precision
+sens_psm <- evalues.RR(est = irr_val, lo = lower_irr, hi = upper_irr)
+print(sens_psm)
+round(sens_psm, 3)
+
+
+#
 
 
 
 
-# causal model for continuous variables, GPS
+
+
+
+# causal model for continuous variables, GPS, with offset ptcount
 # speeding event model
 
 mod01_speeding_50m2km <- glmmTMB(
-  link_speedingcount ~ traffic_calming_50m01 + choker_counts_50m01 + traffic_island_50m01 + signals_crossing_counts_50m01 + marked_counts_50m01 + uncontrolled_counts_50m01 + roundabout_new_50m01 + mini_roundabout_counts_50m01 + motorway_junction_counts_50m01 + signal_new_counts_50m01 + camera_new_counts_50m01 + both_direction01 + scale(averagewidth) + scale(LLen) + scale(LAC) + scale(LConn) + scale(Con2000) + scale(BtHWl2000) + scale(InvMHDWl2000) + scale(MGLHWl2000) + scale(DivHWl2000) + speedLimit_group_new + (1 | city), family = nbinom2, ziformula = ~ 0, control = glmmTMBControl(optCtrl = list(iter.max = 10000, eval.max = 10000)), data = data_combined_x)
+  link_speedingcount ~ traffic_calming_50m01 + choker_counts_50m01 + traffic_island_50m01 + signals_crossing_counts_50m01 + marked_counts_50m01 + uncontrolled_counts_50m01 + roundabout_new_50m01 + mini_roundabout_counts_50m01 + motorway_junction_counts_50m01 + signal_new_counts_50m01 + camera_new_counts_50m01 + both_direction01 + scale(averagewidth) + scale(LLen) + scale(LAC) + scale(LConn) + scale(Con2000) + scale(BtHWl2000) + scale(InvMHDWl2000) + scale(MGLHWl2000) + scale(DivHWl2000) + speedLimit_group_new + (1 | city), offset = log(ptcount), family = nbinom2, ziformula = ~ 0, control = glmmTMBControl(optCtrl = list(iter.max = 10000, eval.max = 10000)), data = data_combined_x)
 summary(mod01_speeding_50m2km)
 sjPlot::tab_model(mod01_speeding_50m2km)
 
@@ -254,6 +292,7 @@ library(glmmTMB)     #   weighted NB-GLMM
 library(data.table)  #   fast dplyr verbs
 library(dplyr)
 library(rlang)       # for `sym()`
+library(EValue)
 
 
 data_combined_x <- data_combined_x %>%
@@ -271,24 +310,33 @@ data_combined_x <- data_combined_x %>%
   )
 
 
-get_ess <- function(w) (sum(w)^2) / sum(w^2)
+colnames(data_combined_x)
+range(data_combined_x$link_speedingRate)
+
+data_combined_x$link_speedingRatePct <- data_combined_x$link_speedingRate * 100
+range(data_combined_x$link_speedingRatePct)
+
 
 
 # ════════════════════════════════════════════════════════════════
 # 1  Settings  –––  change just these two lines for a new analysis
 # ════════════════════════════════════════════════════════════════
 
+
+get_ess <- function(w) (sum(w)^2) / sum(w^2)
+
+
 # set the treatment variable
 
-treat_var   <- "averagewidth"
-treat_var   <- "LLen"
-treat_var   <- "LAC"
-treat_var   <- "LConn"
-treat_var   <- "Con400"
-treat_var   <- "BtHWl400"
-treat_var   <- "InvMHDWl400"
-treat_var   <- "MGLHWl400"
-treat_var   <- "DivHWl400"
+# treat_var   <- "averagewidth"
+# treat_var   <- "LLen"
+# treat_var   <- "LAC"
+# treat_var   <- "LConn"
+# treat_var   <- "Con400"
+# treat_var   <- "BtHWl400"
+# treat_var   <- "InvMHDWl400"
+# treat_var   <- "MGLHWl400"
+# treat_var   <- "DivHWl400"
 
 # treat_var   <- "averagewidth"
 # treat_var   <- "LLen"
@@ -302,39 +350,39 @@ treat_var   <- "DivHWl400"
 
 # treat_var   <- "averagewidth"
 # treat_var   <- "LLen"
-# treat_var   <- "LAC" 
+# treat_var   <- "LAC"
 # treat_var   <- "LConn"
-# treat_var   <- "Con2000" 
+# treat_var   <- "Con2000"
 # treat_var   <- "BtHWl2000"
-# treat_var   <- "InvMHDWl2000"  
-# treat_var   <- "MGLHWl2000"  
+# treat_var   <- "InvMHDWl2000"
+# treat_var   <- "MGLHWl2000"
 # treat_var   <- "DivHWl2000"
 
-# treat_var   <- "averagewidth"
-# treat_var   <- "LLen"
-# treat_var   <- "LAC" 
-# treat_var   <- "LConn"
-# treat_var   <- "Con5000"      
-# treat_var   <- "BtHWl5000"
-# treat_var   <- "InvMHDWl5000"  
-# treat_var   <- "MGLHWl5000"  
-# treat_var   <- "DivHWl5000"  
+treat_var   <- "averagewidth"
+treat_var   <- "LLen"
+treat_var   <- "LAC"
+treat_var   <- "LConn"
+treat_var   <- "Con5000"
+treat_var   <- "BtHWl5000"
+treat_var   <- "InvMHDWl5000"
+treat_var   <- "MGLHWl5000"
+treat_var   <- "DivHWl5000"
 
 
 # fixed covariate lists (edit only if your data changes)
 # continuous variables
 
-cont_cov <- c("averagewidth","LLen","LAC","LConn","Con400",
-              "InvMHDWl400","BtHWl400","MGLHWl400","DivHWl400")
+# cont_cov <- c("averagewidth","LLen","LAC","LConn","Con400",
+#               "InvMHDWl400","BtHWl400","MGLHWl400","DivHWl400")
 
 cont_cov <- c("averagewidth","LLen","LAC","LConn","Con800",
               "InvMHDWl800","BtHWl800","MGLHWl800","DivHWl800")
 
-cont_cov <- c("averagewidth","LLen","LAC","LConn","Con2000",
-              "InvMHDWl2000","BtHWl2000","MGLHWl2000","DivHWl2000")
+# cont_cov <- c("averagewidth","LLen","LAC","LConn","Con2000",
+#               "InvMHDWl2000","BtHWl2000","MGLHWl2000","DivHWl2000")
 
-cont_cov <- c("averagewidth","LLen","LAC","LConn","Con5000",
-              "InvMHDWl5000","BtHWl5000","MGLHWl5000","DivHWl5000")
+# cont_cov <- c("averagewidth","LLen","LAC","LConn","Con5000",
+#               "InvMHDWl5000","BtHWl5000","MGLHWl5000","DivHWl5000")
 
 
 # ── drop the *current* treatment so it isn’t in the covariate set
@@ -349,17 +397,13 @@ bin_cov <- c("traffic_calming_50m01","choker_counts_50m01",
              "camera_new_counts_50m01","both_direction01")
 
 
-# outcome variable
-outcome_var <- "link_speedingcount"   # outcome, speeding event count
-
 
 # ════════════════════════════════════════════════════════════════
 # 2  Clean data  (scale treatment & continuous covariates)
 # ════════════════════════════════════════════════════════════════
 
 gps_df_raw <- data_combined_x %>%
-  select(all_of(c(outcome_var, treat_var, "speed_limit_factor",
-                  bin_cov, cont_cov_nomix))) %>%
+  select(all_of(c(treat_var, "speed_limit_factor", "link_speedingcount", "link_speedingRatePct", "ptcount", "city", bin_cov, cont_cov_nomix))) %>%
   na.omit() %>%
   mutate(
     id = row_number(),
@@ -378,7 +422,6 @@ gps_df_trimmed <- trim_it(
 
 cat("N after trimming =", nrow(gps_df_trimmed), "\n")
 
-
 gps_df_trimmed <- gps_df_trimmed %>%
   mutate(
     treat = scale(.data[[treat_var]])[,1],
@@ -389,7 +432,10 @@ gps_df_trimmed <- gps_df_trimmed %>%
          all_of(bin_cov),
          all_of(paste0(cont_cov_nomix, "_z")),
          speed_limit_factor,
-         outcome = !!sym(outcome_var))
+         link_speedingcount, 
+         link_speedingRatePct, 
+         ptcount, 
+         city)
 
 
 # final covariate list
@@ -407,48 +453,6 @@ cat("Final N =", nrow(gps_df_trimmed), "\n")
 # 3  Estimate generalized propensity score
 # ════════════════════════════════════════════════════════════════
 
-# set the treatment variable
-
-treat_var   <- "averagewidth"
-treat_var   <- "LLen"
-treat_var   <- "LAC"
-treat_var   <- "LConn"
-treat_var   <- "Con400"
-treat_var   <- "BtHWl400"
-treat_var   <- "InvMHDWl400"
-treat_var   <- "MGLHWl400"
-treat_var   <- "DivHWl400"
-
-# treat_var   <- "averagewidth"
-# treat_var   <- "LLen"
-# treat_var   <- "LAC"
-# treat_var   <- "LConn"
-# treat_var   <- "Con800"
-# treat_var   <- "BtHWl800"
-# treat_var   <- "InvMHDWl800"
-# treat_var   <- "MGLHWl800"
-# treat_var   <- "DivHWl800"
-
-# treat_var   <- "averagewidth"
-# treat_var   <- "LLen"
-# treat_var   <- "LAC" 
-# treat_var   <- "LConn"
-# treat_var   <- "Con2000" 
-# treat_var   <- "BtHWl2000"
-# treat_var   <- "InvMHDWl2000"  
-# treat_var   <- "MGLHWl2000"  
-# treat_var   <- "DivHWl2000"
-
-# treat_var   <- "averagewidth"
-# treat_var   <- "LLen"
-# treat_var   <- "LAC"
-# treat_var   <- "LConn"
-# treat_var   <- "Con5000"
-# treat_var   <- "BtHWl5000"
-# treat_var   <- "InvMHDWl5000"
-# treat_var   <- "MGLHWl5000"
-# treat_var   <- "DivHWl5000"
-
 # normal
 set.seed(123)
 gps_obj_normal <- estimate_gps(
@@ -465,6 +469,29 @@ nrow(gps_obj_normal$.data)
 # Trim the gps_obj_normal using trim_it(), for certain marginal balance vars
 gps_obj_normal_trimmed <- trim_it(
   data_obj = gps_obj_normal,
+  trim_quantiles = c(0.001, 0.999),   # trims bottom 0.1% and top 0.1% of the treatment
+  variable = "gps"                # gps value
+)
+
+nrow(gps_obj_normal$.data)
+nrow(gps_obj_normal_trimmed$.data)
+plot(gps_obj_normal_trimmed)
+
+# Trim the gps_obj_normal using trim_it(), for certain marginal balance vars
+gps_obj_normal_trimmed <- trim_it(
+  data_obj = gps_obj_normal,
+  trim_quantiles = c(0.005, 0.995),   # trims bottom 0.5% and top 0.5% of the treatment
+  variable = "gps"                # gps value
+)
+
+nrow(gps_obj_normal$.data)
+nrow(gps_obj_normal_trimmed$.data)
+plot(gps_obj_normal_trimmed)
+
+
+# Trim the gps_obj_normal using trim_it(), for certain marginal balance vars
+gps_obj_normal_trimmed <- trim_it(
+  data_obj = gps_obj_normal,
   trim_quantiles = c(0.01, 0.99),   # trims bottom 1% and top 1% of the treatment
   variable = "gps"                # gps value
 )
@@ -474,28 +501,6 @@ nrow(gps_obj_normal_trimmed$.data)
 plot(gps_obj_normal_trimmed)
 
 
-# Trim the gps_obj_normal using trim_it(), for certain marginal balance vars
-gps_obj_normal_trimmed <- trim_it(
-  data_obj = gps_obj_normal,
-  trim_quantiles = c(0.005, 0.995),   # trims bottom 1% and top 1% of the treatment
-  variable = "gps"                # gps value
-)
-
-nrow(gps_obj_normal$.data)
-nrow(gps_obj_normal_trimmed$.data)
-plot(gps_obj_normal_trimmed)
-
-
-# Trim the gps_obj_normal using trim_it(), for certain marginal balance vars
-gps_obj_normal_trimmed <- trim_it(
-  data_obj = gps_obj_normal,
-  trim_quantiles = c(0.001, 0.999),   # trims bottom 1% and top 1% of the treatment
-  variable = "gps"                # gps value
-)
-
-nrow(gps_obj_normal$.data)
-nrow(gps_obj_normal_trimmed$.data)
-plot(gps_obj_normal_trimmed)
 
 
 # ═════════════════════════════════════════
@@ -619,6 +624,15 @@ sort(bad, decreasing = TRUE)
 ## 6. Estimate and Plot Exposure–Response Function (ERF)
 ## ────────────────────────────────────────────────────────
 
+colnames(gps_df_trimmed)
+
+# outcome variable
+outcome_var <- "link_speedingRatePct"   # outcome, link speeding rate, percent
+
+# outcome variable
+outcome_var <- "link_speedingcount"   # outcome, speeding event count
+
+
 # weight
 # ensure the log goes somewhere writable
 set_logger(logger_file_path = file.path(tempdir(), "CausalGPS.log"), logger_level = "INFO")
@@ -626,9 +640,10 @@ set_logger(logger_file_path = file.path(tempdir(), "CausalGPS.log"), logger_leve
 range(pseudo_weight_trimmed$.data$treat)
 sd(pseudo_weight_trimmed$.data$treat)
 
+
 erf_np <- estimate_erf(
   .data            = pseudo_weight_trimmed$.data,
-  .formula         = outcome ~ treat,          # treatment column = "treat"
+  .formula         = reformulate("treat", response = outcome_var),
   weights_col_name = "counter_weight",
   model_type       = "nonparametric",
   
@@ -659,10 +674,70 @@ round(mu_1, 3)
 delta_gps <- mu_1 - mu_0           # absolute causal difference
 round(delta_gps, 3)
 
-mu_n1  <- erf_fun(-1)
-round(mu_n1, 3)
-delta_gps1 <- mu_0 - mu_n1           # absolute causal difference
-round(delta_gps1, 3)
+# sensitivity
+
+RR_gps <- mu_1 / mu_0
+round(RR_gps, 3)
+
+evalue_rr <- function(RR) {
+  if (RR >= 1) {
+    RR + sqrt(RR * (RR - 1))
+  } else {
+    (1 / RR) + sqrt((1 / RR) * ((1 / RR) - 1))
+  }
+}
+
+Evalue_gps <- evalue_rr(RR_gps)
+round(Evalue_gps, 3)
+
+# mu_n1  <- erf_fun(-1)
+# round(mu_n1, 3)
+# delta_gps1 <- mu_0 - mu_n1           # absolute causal difference
+# round(delta_gps1, 3)
+
+
+# Use the pseudo-population from CausalGPS
+gps_data <- pseudo_weight_trimmed$.data
+
+gps_formula <- as.formula(paste("link_speedingcount", "~", "treat", "+ (1 | city)"))
+
+# Fit GLMM using GPS counter-weights
+gps_post_model <- glmmTMB(
+  formula = gps_formula, # 'treat' is the 1-SD scaled width
+  offset = log(ptcount),
+  weights = counter_weight, 
+  family = nbinom2,
+  data   = gps_data
+)
+
+# Extract IRR and 95% Confidence Interval
+res_gps <- summary(gps_post_model)$coefficients$cond["treat", ]  # rate
+
+# Fit GLMM using GPS counter-weights
+gps_post_model_raw <- glmmTMB(
+  formula = gps_formula, # 'treat' is the 1-SD scaled width
+  weights = counter_weight, 
+  family = nbinom2,
+  data   = gps_data
+)
+
+# Extract effect of 1-SD increase
+res_gps <- summary(gps_post_model_raw)$coefficients$cond["treat", ]  # count
+
+
+# post irr
+irr_sd <- exp(res_gps["Estimate"])
+lower_gps <- exp(res_gps["Estimate"] - 1.96 * res_gps["Std. Error"])
+upper_gps <- exp(res_gps["Estimate"] + 1.96 * res_gps["Std. Error"])
+
+cat("Continuous Effect (IRR per 1-SD):", round(irr_sd, 3), "CI:", round(lower_gps, 3), "-", round(upper_gps, 3), "\n")
+
+# The E-value for a 1-SD change
+sens_gps <- evalues.RR(est = irr_sd, lo = lower_gps, hi = upper_gps)
+print(sens_gps)
+round(sens_gps, 3)
+
+
 
 
 
@@ -673,9 +748,15 @@ set_logger(logger_file_path = file.path(tempdir(), "CausalGPS.log"), logger_leve
 range(pseudo_match$.data$treat)
 sd(pseudo_match$.data$treat)
 
+# outcome variable
+outcome_var <- "link_speedingRatePct"   # outcome, link speeding rate, percent
+
+# outcome variable
+outcome_var <- "link_speedingcount"   # outcome, speeding event count
+
 erf_np_match <- estimate_erf(
   .data            = pseudo_match$.data,
-  .formula         = outcome ~ treat,          # treatment column = "treat"
+  .formula = reformulate("treat", response = outcome_var),
   weights_col_name = "counter_weight",
   model_type       = "nonparametric",       
   
@@ -706,9 +787,71 @@ round(mu_1, 3)
 delta_gps <- mu_1 - mu_0           # absolute causal difference
 round(delta_gps, 3)
 
-mu_n1  <- erf_fun_match(-1)
-round(mu_n1, 3)
-delta_gps1 <- mu_0 - mu_n1           # absolute causal difference
-round(delta_gps1, 3)
+
+# sensitivity
+
+RR_gps <- mu_1 / mu_0
+round(RR_gps, 3)
+
+evalue_rr <- function(RR) {
+  if (RR >= 1) {
+    RR + sqrt(RR * (RR - 1))
+  } else {
+    (1 / RR) + sqrt((1 / RR) * ((1 / RR) - 1))
+  }
+}
+
+Evalue_gps <- evalue_rr(RR_gps)
+round(Evalue_gps, 3)
+
+
+# mu_n1  <- erf_fun_match(-1)
+# round(mu_n1, 3)
+# delta_gps1 <- mu_0 - mu_n1           # absolute causal difference
+# round(delta_gps1, 3)
+
+
+
+# Use the pseudo-population from CausalGPS
+gps_data <- pseudo_match$.data
+
+gps_formula <- as.formula(paste("link_speedingcount", "~", "treat", "+ (1 | city)"))
+
+# Fit GLMM using GPS counter-weights
+gps_post_model <- glmmTMB(
+  formula = gps_formula, # 'treat' is the 1-SD scaled width
+  offset = log(ptcount),
+  weights = counter_weight, 
+  family = nbinom2,
+  data   = gps_data
+)
+
+# Extract IRR and 95% Confidence Interval
+res_gps <- summary(gps_post_model)$coefficients$cond["treat", ]  # rate
+
+# Fit GLMM using GPS counter-weights
+gps_post_model_raw <- glmmTMB(
+  formula = gps_formula, # 'treat' is the 1-SD scaled width
+  weights = counter_weight, 
+  family = nbinom2,
+  data   = gps_data
+)
+
+# Extract effect of 1-SD increase
+res_gps <- summary(gps_post_model_raw)$coefficients$cond["treat", ]  # count
+
+
+# post irr
+irr_sd <- exp(res_gps["Estimate"])
+lower_gps <- exp(res_gps["Estimate"] - 1.96 * res_gps["Std. Error"])
+upper_gps <- exp(res_gps["Estimate"] + 1.96 * res_gps["Std. Error"])
+
+cat("Continuous Effect (IRR per 1-SD):", round(irr_sd, 3), "CI:", round(lower_gps, 3), "-", round(upper_gps, 3), "\n")
+
+# The E-value for a 1-SD change
+sens_gps <- evalues.RR(est = irr_sd, lo = lower_gps, hi = upper_gps)
+print(sens_gps)
+round(sens_gps, 3)
+
 
 #
